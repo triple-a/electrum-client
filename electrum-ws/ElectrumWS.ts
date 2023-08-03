@@ -1,4 +1,4 @@
-import { WebSocket } from "ws";
+import WebSocket, { ErrorEvent, MessageEvent, CloseEvent } from "ws";
 import { Observable } from "./Observable";
 import { stringToBytes, bytesToString } from "./helpers";
 
@@ -244,7 +244,9 @@ export class ElectrumWS extends Observable {
   private onMessage(msg: MessageEvent) {
     // Handle potential multi-line frames
     const raw =
-      typeof msg.data === "string" ? msg.data : bytesToString(msg.data);
+      typeof msg.data === "string"
+        ? msg.data
+        : bytesToString(msg.data as Buffer);
     const lines = raw.split("\n").filter((line) => line.length > 0);
 
     for (const line of lines) {
@@ -310,7 +312,7 @@ export class ElectrumWS extends Observable {
     return false;
   }
 
-  private onError(event: Event) {
+  private onError(event: ErrorEvent) {
     if ((event as ErrorEvent).error) {
       console.error("ElectrumWS ERROR:", (event as ErrorEvent).error);
       this.fire(ElectrumWSEvent.ERROR, (event as ErrorEvent).error);
