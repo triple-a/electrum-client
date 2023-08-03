@@ -1,3 +1,3 @@
-export * from './electrum-ws/index';
-export * from './electrum-api/index';
-export * from './electrum-client/index';
+export * from "./electrum-ws";
+export * from "./electrum-api";
+export * from "./electrum-client";
