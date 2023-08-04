@@ -1,6 +1,6 @@
 {
   "name": "@triple-a/electrum-client",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Electrum utilities for the Nimiq ecosystem",
   "author": "Sören <soeren@nimiq.com>",
   "main": "index.js",
