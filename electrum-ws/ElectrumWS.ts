@@ -1,6 +1,7 @@
 import WebSocket, { ErrorEvent, MessageEvent, CloseEvent } from "ws";
 import { Observable } from "./Observable";
 import { stringToBytes, bytesToString } from "./helpers";
+import { Logger } from "../types";
 
 type RpcResponse = {
   jsonrpc: string;
@@ -31,6 +32,7 @@ export type ElectrumWSOptions = {
   proxy: boolean;
   token?: string;
   reconnect: boolean;
+  logger?: Logger;
 };
 
 export enum ElectrumWSEvent {
@@ -67,6 +69,8 @@ export class ElectrumWS extends Observable {
 
   public ws!: WebSocket;
 
+  private logger: Logger;
+
   constructor(
     endpoint = DEFAULT_ENDPOINT,
     options: Partial<ElectrumWSOptions> = {}
@@ -84,13 +88,15 @@ export class ElectrumWS extends Observable {
       options
     );
 
+    this.logger = options.logger || console;
+
     this.connect();
 
     Object.values(ElectrumWSEvent).forEach((ev: string) => {
       this.on(ev, (e: any) =>
         e
-          ? console.debug(`ElectrumWS - ${ev.toUpperCase()}:`, e)
-          : console.debug(`ElectrumWS - ${ev.toUpperCase()}`)
+          ? this.logger.debug(`ElectrumWS - ${ev.toUpperCase()}:`, e)
+          : this.logger.debug(`ElectrumWS - ${ev.toUpperCase()}`)
       );
     });
   }
@@ -118,7 +124,7 @@ export class ElectrumWS extends Observable {
     }
 
     const promise = new Promise((resolve, reject) => {
-      const timeout = window.setTimeout(() => {
+      const timeout = globalThis.setTimeout(() => {
         this.requests.delete(id);
         reject(new Error("Request timeout"));
       }, REQUEST_TIMEOUT);
@@ -127,11 +133,11 @@ export class ElectrumWS extends Observable {
         resolve,
         reject,
         method,
-        timeout,
+        timeout: timeout as unknown as number,
       });
     });
 
-    console.debug("ElectrumWS SEND:", method, ...params);
+    this.logger.debug("ElectrumWS SEND:", method, ...params);
     this.ws.send(
       this.options.proxy
         ? stringToBytes(JSON.stringify(payload) + "\n")
@@ -175,13 +181,13 @@ export class ElectrumWS extends Observable {
 
     // Reject all pending requests
     for (const [id, request] of this.requests) {
-      window.clearTimeout(request.timeout);
+      globalThis.clearTimeout(request.timeout);
       this.requests.delete(id);
-      console.debug("Rejecting pending request:", request.method);
+      this.logger.debug("Rejecting pending request:", request.method);
       request.reject(new Error(reason));
     }
 
-    window.clearTimeout(this.reconnectionTimeout);
+    globalThis.clearTimeout(this.reconnectionTimeout);
 
     if (
       this.ws.readyState === WebSocket.CONNECTING ||
@@ -214,7 +220,7 @@ export class ElectrumWS extends Observable {
   private onOpen() {
     this.fire(ElectrumWSEvent.OPEN);
 
-    this.connectedTimeout = window.setTimeout(() => {
+    this.connectedTimeout = globalThis.setTimeout(() => {
       this.connected = true;
       this.fire(ElectrumWSEvent.CONNECTED);
 
@@ -223,7 +229,7 @@ export class ElectrumWS extends Observable {
         const params = subscriptionKey.split("-");
         const method = params.shift();
         if (!method) {
-          console.warn(
+          this.logger.warn(
             "Cannot resubscribe, no method in subscription key:",
             subscriptionKey
           );
@@ -238,7 +244,7 @@ export class ElectrumWS extends Observable {
           }
         });
       }
-    }, CONNECTED_TIMEOUT);
+    }, CONNECTED_TIMEOUT) as unknown as number;
   }
 
   private onMessage(msg: MessageEvent) {
@@ -256,7 +262,7 @@ export class ElectrumWS extends Observable {
 
       if ("id" in response && this.requests.has(response.id)) {
         const request = this.requests.get(response.id)!;
-        window.clearTimeout(request.timeout);
+        globalThis.clearTimeout(request.timeout);
         this.requests.delete(response.id);
 
         if ("result" in response) {
@@ -314,7 +320,7 @@ export class ElectrumWS extends Observable {
 
   private onError(event: ErrorEvent) {
     if ((event as ErrorEvent).error) {
-      console.error("ElectrumWS ERROR:", (event as ErrorEvent).error);
+      this.logger.error("ElectrumWS ERROR:", (event as ErrorEvent).error);
       this.fire(ElectrumWSEvent.ERROR, (event as ErrorEvent).error);
     }
   }
@@ -322,15 +328,15 @@ export class ElectrumWS extends Observable {
   private onClose(event: CloseEvent | Error) {
     this.fire(ElectrumWSEvent.CLOSE, event);
 
-    if (!this.connected) window.clearTimeout(this.connectedTimeout);
+    if (!this.connected) globalThis.clearTimeout(this.connectedTimeout);
     else this.fire(ElectrumWSEvent.DISCONNECTED);
 
     if (this.options.reconnect && this.connected) {
       this.fire(ElectrumWSEvent.RECONNECTING);
-      this.reconnectionTimeout = window.setTimeout(
+      this.reconnectionTimeout = globalThis.setTimeout(
         () => this.connect(),
         RECONNECT_TIMEOUT
-      );
+      ) as unknown as number;
     }
 
     this.connected = false;

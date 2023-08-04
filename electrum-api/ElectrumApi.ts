@@ -371,10 +371,9 @@ export class ElectrumApi {
       this.options.network
     );
 
+    const { subtle } = globalThis.crypto;
     // Hash with SHA256
-    const hash = new Uint8Array(
-      await crypto.subtle.digest("SHA-256", outputScript)
-    );
+    const hash = new Uint8Array(await subtle.digest("SHA-256", outputScript));
 
     // Convert reversed into HEX
     return bytesToHex(hash.reverse());

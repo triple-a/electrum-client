@@ -20,6 +20,7 @@ import {
 } from "./types";
 import { BlockStore, TransactionStore } from "./Stores";
 import { GenesisConfig, Network } from "./GenesisConfig";
+import { Logger } from "../types";
 
 export type ElectrumClientOptions = {
   requiredBlockConfirmations: number;
@@ -28,6 +29,7 @@ export type ElectrumClientOptions = {
     ssl: string | false;
   };
   extraSeedPeers: Peer[];
+  logger?: Logger;
 };
 
 export class ElectrumClient {
@@ -56,12 +58,16 @@ export class ElectrumClient {
 
   private options: ElectrumClientOptions;
 
+  private logger: Logger;
+
   constructor(options: Partial<ElectrumClientOptions> = {}) {
     this.options = {
       requiredBlockConfirmations: 6,
       extraSeedPeers: [],
       ...options,
     };
+
+    this.logger = options.logger || console;
 
     // Seed addressbook
     this.resetPeers();
@@ -89,7 +95,7 @@ export class ElectrumClient {
       try {
         return await agent.getBlockHeader(height);
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get block header at ${height} from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -103,7 +109,7 @@ export class ElectrumClient {
       try {
         return await agent.getBalance(address);
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get balance for ${address} from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -125,7 +131,7 @@ export class ElectrumClient {
       try {
         return await agent.getTransaction(hash, block);
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get transaction ${hash} from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -141,7 +147,7 @@ export class ElectrumClient {
       try {
         return await agent.getTransactionReceipts(address);
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get transaction receipts for ${address} from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -234,11 +240,11 @@ export class ElectrumClient {
 
           txs.push(details);
         } catch (error) {
-          console.warn(error);
+          this.logger.warn(error);
           continue;
         }
       } catch (error) {
-        console.warn(error);
+        this.logger.warn(error);
         return txs;
       }
     }
@@ -271,7 +277,7 @@ export class ElectrumClient {
         tx = await agent.broadcastTransaction(serializedTx);
       } catch (error) {
         sendError = error as Error;
-        console.warn(
+        this.logger.warn(
           `Client: failed to broadcast transaction to ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -313,7 +319,7 @@ export class ElectrumClient {
       try {
         estimates.push(await agent.estimateFees(targetBlocks));
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get fee estimate from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -351,7 +357,7 @@ export class ElectrumClient {
       try {
         return await agent.getFeeHistogram();
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get mempool fees from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -365,7 +371,7 @@ export class ElectrumClient {
       try {
         return await agent.getMinimumRelayFee();
       } catch (error) {
-        console.warn(
+        this.logger.warn(
           `Client: failed to get relay fee from ${agent.peer.host}:`,
           (error as Error).message
         );
@@ -636,7 +642,7 @@ export class ElectrumClient {
       agent.allOff(AgentEvent.CLOSE);
       this.agents.delete(agent);
     }
-    console.debug("Client: Consensus failed: last agent closed");
+    this.logger.debug("Client: Consensus failed: last agent closed");
     this.connect();
   }
 
